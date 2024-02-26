@@ -23,7 +23,18 @@ def main():
         items = [Item(line.strip()) for line in fp]
     print(items)
 
-    print(random.choices(items, k=2))
+    # Choose matchups randomly, but each item should be selected once before repeats
+
+    while True:
+        item_1, item_2 = random.sample(items, 2)
+        print(f"\nWhich do you prefer:\n" f" [1] {item_1}\n" f" [2] {item_2}\n")
+        choice = input()
+        if choice == "1":
+            pass
+        elif choice == "2":
+            pass
+        else:
+            break
 
     return 0
 
