@@ -154,7 +154,7 @@ def main():
         item_1, item_2 = get_matchup(items)
 
         print(f"\nWhich do you prefer:\n" f" [1] {item_1}\n" f" [2] {item_2}\n")
-        choice = input("Choose 1 or 2 (other to exit):")
+        choice = input("Choose 1 or 2 (other to see results): ")
 
         if choice == "1":
             winner = item_1
