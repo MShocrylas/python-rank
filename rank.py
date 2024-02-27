@@ -146,7 +146,7 @@ def main():
         with open(args.json_filename, encoding=ENCODING) as fp_read:
             item_dicts = json.load(fp_read)
             items = [EloItem.from_dict(d) for d in item_dicts]
-            file_name = args.json_filename.split(".")[0]
+            file_name = args.json_filename.split("_")[1].split(".")[0]
 
     # Choose matchups randomly, but each item should be selected once before repeats
 
