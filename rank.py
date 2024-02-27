@@ -11,17 +11,34 @@ class ELOItem:
     """_summary_"""
 
     def __init__(self, name):
-        self.name = name
-        self._rating = 0
+        self.name: str = name
+        self._rating: int = 1500  # Default starting rating
 
     def __repr__(self):
         return f"{self.name}: {self._rating}"
+
+    def __str__(self):
+        return self.name
+
+    @classmethod
+    def from_dict(cls, d):
+        """_summary_
+
+        Args:
+            d (Dict): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        new_item = cls(d["name"])
+        new_item.rating = d["rating"]
+        return new_item
 
     def to_json(self):
         """Convert class data to json-dumpable format
 
         Returns:
-            dict: key-value pairs of the class' attributes
+            Dict: key-value pairs of the class' attributes
         """
         return {"name": self.name, "rating": self.rating}
 
@@ -46,11 +63,17 @@ def get_args():
     )
     subparsers = parser.add_subparsers(dest="command")
 
-    parser_new = subparsers.add_parser("new", help="TEMP")
+    parser_new = subparsers.add_parser(
+        "new",
+        help=(
+            "Read a list of items from plain text and generate a rank set "
+            "from it stored as JSON in a rankinfo file"
+        ),
+    )
     parser_new.add_argument("text_filename")
 
     parser_load = subparsers.add_parser("load", help="TEMP")
-    parser_load.add_argument("items_filename")
+    parser_load.add_argument("json_filename")
 
     return parser.parse_args()
 
@@ -66,15 +89,11 @@ def main():
         with open(args.text_filename, encoding=ENCODING) as fp_read:
             items = [ELOItem(line.strip()) for line in fp_read]
 
-        file_name = args.text_filename.split(".")[0]
-        with open(
-            f"rankinfo_{file_name}.json", mode="w+", encoding=ENCODING
-        ) as fp_write:
-            json.dump([item.to_json() for item in items], fp_write, indent=2)
-
     elif args.command == "load":
         # Load from existing item set
-        pass
+        with open(args.json_filename, encoding=ENCODING) as fp_read:
+            item_dicts = json.load(fp_read)
+            items = [ELOItem.from_dict(d) for d in item_dicts]
 
     # Choose matchups randomly, but each item should be selected once before repeats
 
