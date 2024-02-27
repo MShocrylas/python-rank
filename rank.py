@@ -7,8 +7,18 @@ import json
 ENCODING = "utf-8"
 
 
-class ELOItem:
-    """_summary_"""
+class EloItem:
+    """Represents an item with an Elo rating for comparison purposes
+
+    Attributes:
+        name (str): Name or identifier for the item
+        rating (int): The item's current Elo rating (default: 1500)
+
+    Methods:
+        from_dict(d): [Class Method] Creates an EloItem object from a dictionary representation
+        to_json(): Returns a dictionary representation suitable for JSON serialization
+
+    """
 
     def __init__(self, name):
         self.name: str = name
@@ -22,13 +32,13 @@ class ELOItem:
 
     @classmethod
     def from_dict(cls, d):
-        """_summary_
+        """Creates an EloItem object from a dictionary
 
         Args:
-            d (Dict): _description_
+            d (Dict): A dictionary with 'name' and 'rating' keys
 
         Returns:
-            _type_: _description_
+            EloItem: A new EloItem object populated from the dictionary
         """
         new_item = cls(d["name"])
         new_item.rating = d["rating"]
@@ -44,12 +54,58 @@ class ELOItem:
 
     @property
     def rating(self):
-        """Current ELO rating of the Item"""
+        """Current ELO rating of the EloItem"""
         return self._rating
 
     @rating.setter
     def rating(self, new_rating):
         self._rating = new_rating
+
+
+def expected_score(rating_a, rating_b):
+    """Calculate the expected score of a "player" with rating of rating_a,
+    playing against an opponent with rating of rating_b
+
+    Args:
+        rating_a (int)
+        rating_b (int)
+
+    Returns:
+        float: a value between 0 and 1
+    """
+    return 1 / (1 + 10 ** ((rating_b - rating_a) / 400))
+
+
+def update_elo_ratings(winner, loser, k=32):
+    """Updates the Elo
+
+    Args:
+        winner (_type_): _description_
+        loser (_type_): _description_
+        k (int, optional): _description_. Defaults to 32.
+    """
+    expected_a = expected_score(winner.rating, loser.rating)
+    expected_b = expected_score(loser.rating, winner.rating)
+
+    winner.rating += round(k * (1 - expected_a))
+    loser.rating += round(k * (1 - expected_b))
+
+
+def get_matchup(items):
+    """Return two different items from a collection of items
+
+    TODO: Improve selection algorithm, instead of being a random choice,
+        bias the choice based on some heuristic:
+        - Track how many times each item has been chosen, ensure each item receives a similar number of matchups
+        - Match similarly rated items against each other
+
+    Args:
+        items (List): collection of comparable items
+
+    Returns:
+        List: Two different items from the input collection
+    """
+    return random.sample(items, 2)
 
 
 def get_args():
@@ -78,37 +134,42 @@ def get_args():
     return parser.parse_args()
 
 
-def get_matchup(items):
-    return random.sample(items, 2)
-
-
 def main():
     args = get_args()
 
     if args.command == "new":
         with open(args.text_filename, encoding=ENCODING) as fp_read:
-            items = [ELOItem(line.strip()) for line in fp_read]
+            items = [EloItem(line.strip()) for line in fp_read]
 
     elif args.command == "load":
         # Load from existing item set
         with open(args.json_filename, encoding=ENCODING) as fp_read:
             item_dicts = json.load(fp_read)
-            items = [ELOItem.from_dict(d) for d in item_dicts]
+            items = [EloItem.from_dict(d) for d in item_dicts]
 
     # Choose matchups randomly, but each item should be selected once before repeats
 
     while True:
         item_1, item_2 = get_matchup(items)
+
         print(f"\nWhich do you prefer:\n" f" [1] {item_1}\n" f" [2] {item_2}\n")
         choice = input()
+
         if choice == "1":
-            item_1.rating = 1500
+            winner = item_1
+            loser = item_2
         elif choice == "2":
-            item_2.rating = 1500
+            winner = item_2
+            loser = item_1
         else:
             break
 
+        update_elo_ratings(winner, loser)
+
     print(items)
+    file_name = args.text_filename.split(".")[0]
+    with open(f"rankinfo_{file_name}.json", mode="w+", encoding=ENCODING) as fp_write:
+        json.dump([item.to_json() for item in items], fp_write, indent=2)
 
     return 0
 
