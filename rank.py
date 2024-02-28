@@ -2,7 +2,7 @@ import random
 import argparse
 import sys
 import json
-
+import io
 
 ENCODING = "utf-8"
 
@@ -171,6 +171,21 @@ def main():
     # Overwrite if already exists
     with open(f"rankinfo_{file_name}.json", mode="w+", encoding=ENCODING) as fp_write:
         json.dump([item.to_json() for item in items], fp_write, indent=2)
+
+    # Sort by rating, high to low
+    items.sort(key=lambda item: item.rating, reverse=True)
+
+    with io.StringIO() as str_buffer:
+        str_buffer.write("--- Ranked Results ---")
+
+        rank = 1
+        for item in items:
+
+            str_buffer.write(f"{rank}. {item}: (Rating: {item.rating})")
+
+    print("\n--- Ranked Results ---")
+    for i, item in enumerate(items):
+        print(f"{i + 1}. {item}: (Rating: {item.rating})")
 
     return 0
 
