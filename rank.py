@@ -96,7 +96,7 @@ def update_elo_ratings(winner: EloItem, loser: EloItem, k: int = 32):
     loser.rating += round(k * (0 - expected_b))
 
 
-def get_matchup(items: list):
+def get_matchup(items: list[EloItem]):
     """Return two different items from a collection of items
 
     TODO: Improve selection algorithm, instead of being a random choice,
@@ -131,9 +131,17 @@ def get_args():
             "from it stored as JSON in a rankinfo file"
         ),
     )
-    parser_new.add_argument("txt_filename")
+    parser_new.add_argument(
+        "input_filename", help="Text file containing items for ranking"
+    )
 
-    parser_load = subparsers.add_parser("load", help="TEMP")
+    parser_load = subparsers.add_parser(
+        "load",
+        help=(
+            "Load a saved 'rankinfo' file and resume comparisons"
+            "to continue refining an existing item set"
+        ),
+    )
     parser_load.add_argument("json_filename")
 
     return parser.parse_args()
@@ -143,9 +151,9 @@ def main():
     args = get_args()
 
     if args.command == "new":
-        with open(args.txt_filename, encoding=ENCODING) as fp_read:
+        with open(args.input_filename, encoding=ENCODING) as fp_read:
             items = [EloItem(line.strip()) for line in fp_read]
-            file_name = args.txt_filename.split(".")[0]
+            file_name = args.input_filename.split(".")[0]
     elif args.command == "load":
         # Load from existing item set
         with open(args.json_filename, encoding=ENCODING) as fp_read:
@@ -153,22 +161,8 @@ def main():
             items = [EloItem.from_dict(d) for d in item_dicts]
             file_name = args.json_filename.split("_")[1].split(".")[0]
 
-    while True:
-        item_1, item_2 = get_matchup(items)
-
-        print(f"\nWhich do you prefer:\n" f" [1] {item_1}\n" f" [2] {item_2}\n")
-        choice = input("Choose 1 or 2 (other to see results): ")
-
-        if choice == "1":
-            winner = item_1
-            loser = item_2
-        elif choice == "2":
-            winner = item_2
-            loser = item_1
-        else:
-            break
-
-        update_elo_ratings(winner, loser)
+    while present_matchup_and_update(items):
+        pass
 
     # Mode 'w' will overwrite the file contents if file already exists
     with open(f"rankinfo_{file_name}.json", mode="w+", encoding=ENCODING) as fp_write:
@@ -181,11 +175,39 @@ def main():
     return 0
 
 
+def present_matchup_and_update(items: list[EloItem]):
+    """Presents a matchup, gets user choice, and updates Elo ratings
+
+    Args:
+        items: A list of EloItem objects.
+
+    Returns:
+        bool: True if the user wants to continue, False to see results
+    """
+    item_1, item_2 = get_matchup(items)
+
+    print(f"\nWhich do you prefer:\n" f" [1] {item_1}\n" f" [2] {item_2}\n")
+    choice = input("Choose 1 or 2 (other to see results): ")
+
+    if choice == "1":
+        winner = item_1
+        loser = item_2
+    elif choice == "2":
+        winner = item_2
+        loser = item_1
+    else:
+        return False
+
+    update_elo_ratings(winner, loser)
+    return True
+
+
 def display_results(items, file_name):
     """Format the results in a ranked list, print to stdout,
-    then prmopt user to optionally save the result output to a txt file"""
+    then prompt user to optionally save the result output to a txt file
+    """
     with io.StringIO() as str_buffer:
-        str_buffer.write("---- Ranked Results ----\n")
+        str_buffer.write("\n---- Ranked Results ----\n")
 
         prev_rating = None
         for i, item in enumerate(items, 1):
