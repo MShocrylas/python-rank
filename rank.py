@@ -1,5 +1,10 @@
+"""
+
+"""
+
 import random
 import argparse
+import shutil
 import sys
 import json
 import io
@@ -20,7 +25,7 @@ class EloItem:
 
     """
 
-    def __init__(self, name, rating=1500):
+    def __init__(self, name: str, rating: int = 1500):
         self.name: str = name
         self._rating: int = rating
 
@@ -31,7 +36,7 @@ class EloItem:
         return self.name
 
     @classmethod
-    def from_dict(cls, d):
+    def from_dict(cls, d: dict):
         """Creates an EloItem object from a dictionary
 
         Args:
@@ -58,7 +63,7 @@ class EloItem:
         return self._rating
 
     @rating.setter
-    def rating(self, new_rating):
+    def rating(self, new_rating: int):
         self._rating = new_rating
 
 
@@ -76,7 +81,7 @@ def expected_score(rating_a, rating_b):
     return 1 / (1 + 10 ** ((rating_b - rating_a) / 400))
 
 
-def update_elo_ratings(winner, loser, k=32):
+def update_elo_ratings(winner: EloItem, loser: EloItem, k: int = 32):
     """Updates the Elo ratings for the items after a matchup
 
     Args:
@@ -91,7 +96,7 @@ def update_elo_ratings(winner, loser, k=32):
     loser.rating += round(k * (0 - expected_b))
 
 
-def get_matchup(items):
+def get_matchup(items: list):
     """Return two different items from a collection of items
 
     TODO: Improve selection algorithm, instead of being a random choice,
@@ -112,7 +117,7 @@ def get_args():
     """Parse and return command line arguments in a structured, documented form
 
     Returns:
-        ArgumentParser: Access the arguments through this class' attributes
+        Namespace: Access the arguments through this object's attributes
     """
     parser = argparse.ArgumentParser(
         description="Rank a set of items based on 1 on 1 preference"
@@ -148,8 +153,6 @@ def main():
             items = [EloItem.from_dict(d) for d in item_dicts]
             file_name = args.json_filename.split("_")[1].split(".")[0]
 
-    # Choose matchups randomly, but each item should be selected once before repeats
-
     while True:
         item_1, item_2 = get_matchup(items)
 
@@ -167,27 +170,52 @@ def main():
 
         update_elo_ratings(winner, loser)
 
-    print(items)
-    # Overwrite if already exists
+    # Mode 'w' will overwrite the file contents if file already exists
     with open(f"rankinfo_{file_name}.json", mode="w+", encoding=ENCODING) as fp_write:
         json.dump([item.to_json() for item in items], fp_write, indent=2)
 
     # Sort by rating, high to low
     items.sort(key=lambda item: item.rating, reverse=True)
-
-    with io.StringIO() as str_buffer:
-        str_buffer.write("--- Ranked Results ---")
-
-        rank = 1
-        for item in items:
-
-            str_buffer.write(f"{rank}. {item}: (Rating: {item.rating})")
-
-    print("\n--- Ranked Results ---")
-    for i, item in enumerate(items):
-        print(f"{i + 1}. {item}: (Rating: {item.rating})")
+    display_results(items, file_name)
 
     return 0
+
+
+def display_results(items, file_name):
+    """Format the results in a ranked list, print to stdout,
+    then prmopt user to optionally save the result output to a txt file"""
+    with io.StringIO() as str_buffer:
+        str_buffer.write("---- Ranked Results ----\n")
+
+        prev_rating = None
+        for i, item in enumerate(items, 1):
+            if prev_rating == item.rating:
+                rank = prev_rank
+            else:
+                rank = i
+
+            str_buffer.write(f"{(rank):3}) {item} ({item.rating})\n")
+
+            prev_rating = item.rating
+            prev_rank = rank
+
+        print(str_buffer.getvalue())
+
+        save_to_file = input("Save results to file? (y/n) ")
+        if save_to_file.lower() == "y":
+            output_file = write_buffer(file_name, str_buffer)
+            print(f"Results saved to {output_file}")
+
+
+def write_buffer(file_name: str, str_buffer: io.StringIO):
+    """ """
+    full_file_name = f"results_{file_name}.txt"
+    with open(full_file_name, mode="w", encoding=ENCODING) as fp_write:
+        # Better than write(str_buffer.getvalue()):
+        # https://stackoverflow.com/questions/3253258/what-is-the-best-way-to-write-the-contents-of-a-stringio-to-a-file
+        str_buffer.seek(0)
+        shutil.copyfileobj(str_buffer, fp_write)
+    return full_file_name
 
 
 if __name__ == "__main__":
