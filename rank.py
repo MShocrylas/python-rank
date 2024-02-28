@@ -17,7 +17,7 @@ class EloItem:
 
     Attributes:
         name: Name or identifier for the item
-        rating: The item's current Elo rating (default: 1500)
+        rating: The item's current Elo rating. Higher means more preferred (default: 1500)
 
     Methods:
         from_dict(d): [Class Method] Creates an EloItem object from a dictionary representation
@@ -111,10 +111,11 @@ def update_elo_ratings(winner: EloItem, loser: EloItem):
 def get_matchup(items: list[EloItem]):
     """Return two different items from a collection of items
 
-    TODO: Improve selection algorithm, instead of being a random choice,
+    In the future: Improve selection algorithm, so instead of being a random choice,
         bias the choice based on some heuristic:
         - Track how many times each item has been chosen, ensure each item receives a similar number of matchups
         - Match similarly rated items against each other
+        - Break tied ratings by forcing matchups between them
 
     Args:
         items: collection of comparable items
@@ -201,34 +202,43 @@ def get_args():
         Namespace: Access the arguments through this object's attributes
     """
     parser = argparse.ArgumentParser(
-        description="Rank a set of items based on 1 on 1 preference"
+        description="Rank items based on your preferences in head-to-head matchups."
     )
     subparsers = parser.add_subparsers(dest="command")
 
     parser_new = subparsers.add_parser(
         "new",
         help=(
-            "Read a list of items from plain text and generate a rank set "
-            "from it stored as JSON in a rankinfo file"
+            "Start a new ranking from a text file of items. "
+            "Data will be stored in a 'rankinfo' file as JSON."
         ),
     )
     parser_new.add_argument(
-        "input_filename", help="Text file containing items for ranking"
+        "input_filename", help="Plaintext file with one item name per line."
     )
 
     parser_load = subparsers.add_parser(
         "load",
         help=(
             "Load a saved 'rankinfo' file and resume comparisons "
-            "to continue refining an existing item set"
+            "to continue refining an existing item set."
         ),
     )
-    parser_load.add_argument("rankinfo_filename", help="rankinfo JSON file to load")
+    parser_load.add_argument(
+        "rankinfo_filename", help="JSON file containing saved ranking data."
+    )
 
     return parser.parse_args()
 
 
 def main():
+    """Parses command-line arguments, manages item ranking, and saves results.
+
+    Reads items from a file ('new' command) or loads them from a saved
+    ranking ('load' command). Conducts head-to-head comparisons, updates
+    item rankings using the Elo system, then displays and saves the final
+    results.
+    """
     args = get_args()
 
     if args.command == "new":
