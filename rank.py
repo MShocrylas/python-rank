@@ -1,7 +1,3 @@
-""" 
-
-"""
-
 import random
 import argparse
 import shutil
@@ -9,11 +5,15 @@ import sys
 import json
 import io
 
+
 ENCODING = "utf-8"
 
 
 class EloItem:
     """Represents an item with an Elo rating for comparison purposes
+
+    Details on the Elo rating system:
+    https://en.wikipedia.org/wiki/Elo_rating_system#Mathematical_details
 
     Attributes:
         name: Name or identifier for the item
@@ -66,63 +66,46 @@ class EloItem:
     def __str__(self):
         return self.name
 
+    def expected_score(self, other_item: "EloItem"):
+        """Calculate the expected score of this item when compared against other_item
+        The expected score is a probability ranging from 0 to 1,
+        with a score of 1 meaning this item will win the comparison 100% of the time
 
-def expected_score(rating_a, rating_b):
-    """Calculate the expected score of a "player" with rating of rating_a,
-    playing against an opponent with rating of rating_b.
-    The expected score is a probability ranging from 0 to 1,
-    with a score of 1 meaning the "player" will win 100% of the time
+        Args:
+            other_item: The opposing EloItem
 
-    Args:
-        rating_a: The "player's" Elo rating
-        rating_b: The opponent's Elo rating
+        Returns:
+            float: a value between 0 and 1, representing win probability
+        """
+        return 1 / (1 + 10 ** ((other_item.rating - self.rating) / 400))
 
-    Returns:
-        float: a value between 0 and 1
-    """
-    return 1 / (1 + 10 ** ((rating_b - rating_a) / 400))
+    def update_rating(self, opponent: "EloItem", did_win: bool, k: int = 40):
+        """Updates this item's rating based on opponent and match outcome
+
+        Args:
+            opponent: The opposing EloItem
+            did_win: Flag indicating if this item won the matchup
+            k (optional): The K-factor, determining the magnitude of rating updates (default: 40)
+        """
+        exp_score = self.expected_score(opponent)
+
+        if did_win:
+            rating_change = round(k * (1 - exp_score))
+        else:
+            rating_change = round(k * (0 - exp_score))
+
+        self.rating += rating_change
 
 
-def update_elo_ratings(winner: EloItem, loser: EloItem, k: int = 32):
+def update_elo_ratings(winner: EloItem, loser: EloItem):
     """Updates the Elo ratings for the items after a matchup
 
     Args:
         winner: EloItem representing the winner
         loser: EloItem representing the loser
-        k (optional): The K-factor, determining the magnitude of rating updates (default: 32)
     """
-    expected_a = expected_score(winner.rating, loser.rating)
-    expected_b = expected_score(loser.rating, winner.rating)
-
-    winner.rating += round(k * (1 - expected_a))
-    loser.rating += round(k * (0 - expected_b))
-
-
-def display_results(items, file_name):
-    """Format the results in a ranked list, print to stdout,
-    then prompt user to optionally save the result output to a txt file
-    """
-    with io.StringIO() as str_buffer:
-        str_buffer.write("\n---- Ranked Results ----\n")
-
-        prev_rating = None
-        for i, item in enumerate(items, 1):
-            if prev_rating == item.rating:
-                rank = prev_rank
-            else:
-                rank = i
-
-            str_buffer.write(f"{(rank):3}) {item} ({item.rating})\n")
-
-            prev_rating = item.rating
-            prev_rank = rank
-
-        print(str_buffer.getvalue())
-
-        save_to_file = input("Save results to file? (y/n) ")
-        if save_to_file.lower() == "y":
-            output_file = write_buffer_to_results(file_name, str_buffer)
-            print(f"Results saved to {output_file}")
+    winner.update_rating(loser, True)
+    loser.update_rating(winner, False)
 
 
 def get_matchup(items: list[EloItem]):
@@ -182,6 +165,33 @@ def write_buffer_to_results(file_name: str, str_buffer: io.StringIO):
         str_buffer.seek(0)
         shutil.copyfileobj(str_buffer, fp_write)
     return full_file_name
+
+
+def display_results(items, file_name):
+    """Format the results in a ranked list, print to stdout,
+    then prompt user to optionally save the result output to a txt file
+    """
+    with io.StringIO() as str_buffer:
+        str_buffer.write("\n---- Ranked Results ----\n")
+
+        prev_rating = None
+        for i, item in enumerate(items, 1):
+            if prev_rating == item.rating:
+                rank = prev_rank
+            else:
+                rank = i
+
+            str_buffer.write(f"{(rank):3}) {item} ({item.rating})\n")
+
+            prev_rating = item.rating
+            prev_rank = rank
+
+        print(str_buffer.getvalue())
+
+        save_to_file = input("Save results to file? (y/n) ")
+        if save_to_file.lower() == "y":
+            output_file = write_buffer_to_results(file_name, str_buffer)
+            print(f"Results saved to {output_file}")
 
 
 def get_args():
