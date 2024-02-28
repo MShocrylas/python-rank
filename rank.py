@@ -56,7 +56,7 @@ class EloItem:
         """Convert class data to json-dumpable format
 
         Returns:
-            Dict: key-value pairs of the class' attributes
+            dict: key-value pairs of the class' attributes
         """
         return {"name": self.name, "rating": self.rating}
 
@@ -237,10 +237,10 @@ def main():
             file_name = args.input_filename.split(".")[0]
     elif args.command == "load":
         # Load from existing item set
-        with open(args.input_filename, encoding=ENCODING) as fp_read:
+        with open(args.rankinfo_filename, encoding=ENCODING) as fp_read:
             item_dicts = json.load(fp_read)
             items = [EloItem.from_dict(d) for d in item_dicts]
-            file_name = args.input_filename.split("_")[1].split(".")[0]
+            file_name = args.rankinfo_filename.split("_")[1].split(".")[0]
 
     while present_matchup_and_update(items):
         pass
