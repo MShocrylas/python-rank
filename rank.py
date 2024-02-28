@@ -22,6 +22,8 @@ class EloItem:
     Methods:
         from_dict(d): [Class Method] Creates an EloItem object from a dictionary representation
         to_json(): Returns a dictionary representation suitable for JSON serialization
+        expected_score(other_item): Probability for this item to beat other_item
+        update_rating(opponenet, did_win, k): Updates this item's rating based on opponent and match outcome
 
     """
 
@@ -37,6 +39,12 @@ class EloItem:
     @rating.setter
     def rating(self, new_rating: int):
         self._rating = new_rating
+
+    def __repr__(self):
+        return f"{self.name}: {self._rating}"
+
+    def __str__(self):
+        return self.name
 
     @classmethod
     def from_dict(cls, dict_item: dict):
@@ -59,12 +67,6 @@ class EloItem:
             dict: key-value pairs of the class' attributes
         """
         return {"name": self.name, "rating": self.rating}
-
-    def __repr__(self):
-        return f"{self.name}: {self._rating}"
-
-    def __str__(self):
-        return self.name
 
     def expected_score(self, other_item: "EloItem"):
         """Calculate the expected score of this item when compared against other_item
@@ -168,15 +170,19 @@ def write_buffer_to_results(file_name: str, str_buffer: io.StringIO):
     return full_file_name
 
 
-def display_results(items, file_name):
+def display_results(sorted_items: list[EloItem], file_name: str):
     """Format the results in a ranked list, print to stdout,
     then prompt user to optionally save the result output to a txt file
+
+    Args:
+        sorted_items: A sorted list of items, with "best" item first, "worst" last
+        file_name: The base file name of the item set
     """
     with io.StringIO() as str_buffer:
         str_buffer.write("\n---- Ranked Results ----\n")
 
         prev_rating = None
-        for i, item in enumerate(items, 1):
+        for i, item in enumerate(sorted_items, 1):
             if prev_rating == item.rating:
                 rank = prev_rank
             else:
@@ -244,24 +250,27 @@ def main():
     if args.command == "new":
         with open(args.input_filename, encoding=ENCODING) as fp_read:
             items = [EloItem(line.strip()) for line in fp_read]
-            file_name = args.input_filename.split(".")[0]
+            base_file_name = args.input_filename.split(".")[0]
     elif args.command == "load":
         # Load from existing item set
         with open(args.rankinfo_filename, encoding=ENCODING) as fp_read:
             item_dicts = json.load(fp_read)
             items = [EloItem.from_dict(d) for d in item_dicts]
-            file_name = args.rankinfo_filename.split("_")[1].split(".")[0]
+            base_file_name = args.rankinfo_filename.split("_")[1].split(".")[0]
 
     while present_matchup_and_update(items):
         pass
 
     # Mode 'w' will overwrite the file contents if file already exists
-    with open(f"rankinfo_{file_name}.json", mode="w+", encoding=ENCODING) as fp_write:
+    with open(
+        f"rankinfo_{base_file_name}.json", mode="w+", encoding=ENCODING
+    ) as fp_write:
+        # Construct a json array of the items, converting each item to json-dumpable format
         json.dump([item.to_json() for item in items], fp_write, indent=2)
 
     # Sort by rating, high to low
     items.sort(key=lambda item: item.rating, reverse=True)
-    display_results(items, file_name)
+    display_results(items, base_file_name)
 
     return 0
 
